@@ -6,6 +6,8 @@ from baidu import baidu
 import HTMLParser
 import re
 import lxml.etree as etree
+# from UnRedirectUrl import getUnRedirectUrl # 已停用
+from http30x import get_302_Location
 
 
 class BaiduPage(object):
@@ -16,6 +18,8 @@ class BaiduPage(object):
 	'''
 	page_number  = 0
 	cache_link_list = []
+	direct_link_list = []
+	real_link_list = []
 	# 条目数不是私有变量
 	items_count = 0
 	# 定义几个变量
@@ -73,6 +77,8 @@ class BaiduPage(object):
 			pass
 		self.find_cache_link()
 		self.find_direct_link()
+		self.link_transfer()
+		
 		pass
 	# 找出百度的直接连接，这个连接应该还包含一些跳转的内容，之后再处理
 	def find_direct_link(self):
@@ -102,27 +108,45 @@ class BaiduPage(object):
 			result = 'rsv_vlevel' in i
 			# print result
 			if result:
-				tmp_list.remove(i)			
+				tmp_list.remove(i)	
+		# print tmp_list		
 		for i in tmp_list:
+			# print i.encode('utf-8')
 			pattern = re.compile('href="(.*?)"',re.S)
-			items = re.findall(pattern,div_str)
+			items_2 = re.findall(pattern,i)# FIXED A BUG 
 			try:
-				print items[0]
+				# print items_2[0].encode('utf-8')
+				self.direct_link_list.append(items_2[0])
 			except:
 				pass
 			pass
+	def link_transfer(self):
+		for i in self.direct_link_list:
+			location =  get_302_Location(i)
+			self.real_link_list.append(location)
+			# print location
+			pass # end of for i 
+		# 去重
+		real_link_list = list(set(self.real_link_list))
+		pass
+
 
 
 def main():
 	example = baidu('信息安全',5)
 	example.run()
-	print '得到'+str(len(example.content_list)) + '页结果'
-	content = example.content_list[0]
+	# print '得到'+str(len(example.content_list)) + '页结果'
+	# content = example.first_page
+	content = example.content_list[1]
 	# print content
 	page = BaiduPage(content,1)
 	page.run(findCounts = True)
 	# print str(page.items_count)
 	# print page.cache_link_list
+	for i in page.real_link_list:
+		print i
+
+
 
 
 
