@@ -22,7 +22,7 @@ class baidu(object):
 		
 	def get_html(self,key_word,page_No):
 		pn = str((page_No - 1) * 10)
-		pay_load = {'wd':key_word,'rn':10,'ie':'utf-8','pn':pn}
+		pay_load = {'wd':key_word,'lm':0,'cl':3,'rsv_bp':0,'rn':10,'ie':'utf-8','pn':pn}
 		http_headers = {'Accept':self._ACCEPT,'User-Agent':self._USER_AGENT}
 		r = requests.get('http://www.baidu.com/s',params = pay_load,headers = http_headers) 
 		# print r.content

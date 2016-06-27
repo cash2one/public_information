@@ -123,7 +123,8 @@ class BaiduPage(object):
 	def link_transfer(self):
 		for i in self.direct_link_list:
 			location =  get_302_Location(i)
-			self.real_link_list.append(location)
+			if 'https://www.baidu.com/s?' not in location:
+				self.real_link_list.append(location)
 			# print location
 			pass # end of for i 
 		# 去重
@@ -133,11 +134,11 @@ class BaiduPage(object):
 
 
 def main():
-	example = baidu('信息安全',5)
+	example = baidu('刘灵均+成飞')
 	example.run()
 	# print '得到'+str(len(example.content_list)) + '页结果'
 	# content = example.first_page
-	content = example.content_list[1]
+	content = example.content_list[0]
 	# print content
 	page = BaiduPage(content,1)
 	page.run(findCounts = True)
@@ -145,7 +146,10 @@ def main():
 	# print page.cache_link_list
 	for i in page.real_link_list:
 		print i
-
+	# print page.real_link_list
+	print len(example.content_list)
+	# for i in page.cache_link_list:
+	# 	print i # 百度快照部分的解析还存在问题。。。
 
 
 
