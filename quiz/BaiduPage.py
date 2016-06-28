@@ -8,6 +8,7 @@ import re
 import lxml.etree as etree
 # from UnRedirectUrl import getUnRedirectUrl # 已停用
 from http30x import get_302_Location
+import time
 
 
 class BaiduPage(object):
@@ -25,7 +26,7 @@ class BaiduPage(object):
 	# 定义几个变量
 	_html_content = ''
 	search_condition = '' # 不知道在这里添加是否合适?
-	def __init__(self,html_content,page_number):
+	def __init__(self,html_content,page_number = 1):
 		self.page_number = page_number
 		self._html_content = html_content
 		self._root = etree.HTML(html_content)
@@ -122,6 +123,7 @@ class BaiduPage(object):
 			pass
 	def link_transfer(self):
 		for i in self.direct_link_list:
+			time.sleep(0.7)# 略微延迟
 			location =  get_302_Location(i)
 			if 'https://www.baidu.com/s?' not in location:
 				self.real_link_list.append(location)

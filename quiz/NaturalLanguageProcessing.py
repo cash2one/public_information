@@ -13,16 +13,27 @@ import requests
 import os 
 import hashlib
 import re
-
 # 该模块用来负责  自然语言处理
 # 目前暂时使用 bosonnlp 模块
 try:
 	import MySQLdb
 	has_MySQLdb = True
+	has_pymysql = False
 except:
 	has_MySQLdb = False
+# 添加了新的数据库处理模块 
+# pymysql
+try:
+	import pymysql
+	has_pymysql = True
+except:
+	pass
+
+
+
 import sys
 db_passw0rd = '#FIR8B*SinMSFN41xr#'
+local_pass_word = 'Zh-L3z34IokS6fGze'
 
 
 class nlp(object):
