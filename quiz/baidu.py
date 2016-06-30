@@ -15,7 +15,7 @@ class baidu(object):
 	_USER_AGENT = '''Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11) AppleWebKit/601.1.56 (KHTML, like Gecko) Version/9.0 Safari/601.1.56'''
 	content_list = []
 	first_page = ''
-	def __init__(self,key_word,pages = 20):
+	def __init__(self,key_word,pages = 10):
 		self.key_word = key_word
 		self.pages = pages
 		# 下面是两个常量 
@@ -54,7 +54,7 @@ class baidu(object):
 			return 'Finished'
 		for i in range(2,self.pages + 1):
 			# print i
-			time.sleep(0.5+ 1.5 * random.random())
+			time.sleep(0.5)
 			# 先延时一段时间
 			each_content = self.get_html(self.key_word,i)
 			self.content_list.append(each_content)

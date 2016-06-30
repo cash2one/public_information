@@ -18,7 +18,6 @@ import re
 try:
 	import MySQLdb
 	has_MySQLdb = True
-	has_pymysql = False
 except:
 	has_MySQLdb = False
 # 添加了新的数据库处理模块 
@@ -27,13 +26,13 @@ try:
 	import pymysql
 	has_pymysql = True
 except:
+	has_pymysql = False
 	pass
-
-
 
 import sys
 db_passw0rd = '#FIR8B*SinMSFN41xr#'
-local_pass_word = 'Zh-L3z34IokS6fGze'
+db_pass_word = 'Zh-L3z34IokS6fGze'
+db_name = 'risk_assessment_system'
 
 
 class nlp(object):
@@ -275,22 +274,46 @@ class nlp(object):
 		pass
 	# 展示完成， 下面写数据库
 	# 先是写字符串吧，这个是给前段看的
+	# now support pymysql
 	def write_db_str(self):
 		if not has_MySQLdb:
 			# 就是没有这个模块
-			return 'NO MySQLdb'
+			# return 'NO MySQLdb'
+			pass # 因为还可能有pymysql
 		else:
-			pass
-		parameter = (self.url,self.sha256,self.str_company,self.str_org,self.str_job,self.str_product,self.str_person,self.str_location,self.sentiment_str,self.theme)
-		# go
-		conn = MySQLdb.connect('localhost','root',db_passw0rd,'nlp',charset="utf8")
-		cursor = conn.cursor()
-		cursor.execute("INSERT INTO `nlp`.`result` (`url`, `sha256`, `company`, `org`, `job`, `product`, `person_name`, `locations`, `positive`, `theme`) VALUES (\'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\')"%parameter)
-		cursor.close()
-		conn.commit()
-		conn.close()
+			parameter = (self.url,self.sha256,self.str_company,self.str_org,self.str_job,self.str_product,self.str_person,self.str_location,self.sentiment_str,self.theme)
+			# go
+			conn = MySQLdb.connect('localhost','root',db_passw0rd,'nlp',charset="utf8")
+			cursor = conn.cursor()
+			cursor.execute("INSERT INTO `nlp`.`result` (`url`, `sha256`, `company`, `org`, `job`, `product`, `person_name`, `locations`, `positive`, `theme`) VALUES (\'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\')"%parameter)
+			cursor.close()
+			conn.commit()
+			conn.close()
+			return 'Use MySQLdb'
+		if not has_pymysql:
+			# print ('HERE')
+			return 'NO pymysql'
+		else:
+			# print ('go')
+			connection = pymysql.connect(
+			host='127.0.0.1',
+			user = 'root',
+			password = db_pass_word,
+			db = db_name,
+			charset = 'utf8')
+			try:
+				with connection.cursor() as cursor:
+					sql = u"INSERT INTO `nlp_result` (`url`, `sha256`, `company`, `org`, `job`, `product`, `person_name`, `locations`, `positive`, `theme`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+					para = (self.url,self.sha256,self.str_company,self.str_org,self.str_job,self.str_product,self.str_person,self.str_location,self.sentiment_str,self.theme)
+					cursor.execute(sql,para)
+				connection.commit()
+				cursor.close()
+			finally:
+				connection.close()
+				return 'DONE by pymysql'
 		pass # end of the function
 	# 然后是写到后端的表中
+	# now support pymysql
 	def write_db_storage(self):
 		# 写入数据库的字符串和给前段看的还有一些不一样
 		db_company = '/' + '//'.join(self.company_name) + '/'
@@ -302,17 +325,41 @@ class nlp(object):
 		# print (db_company)
 		if not has_MySQLdb:
 			# 就是没有这个模块
-			return 'NO MySQLdb'
-		else:
+			# return 'NO MySQLdb'
 			pass
-		parameter = (self.url,self.sha256,self.content,str(self.sentiment_positive),self.theme,db_company,db_org,db_job,db_product,db_person,db_locations)
-		# go
-		conn = MySQLdb.connect('localhost','root',db_passw0rd,'nlp',charset="utf8")
-		cursor = conn.cursor()
-		cursor.execute("INSERT INTO `nlp`.`storage` (`url`, `sha256`, `text`, `positive`, `theme`, `company`, `org`, `job`, `product`, `person_name`, `locations`) VALUES (\'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\')"%parameter)
-		cursor.close()
-		conn.commit()
-		conn.close()
+		else:
+			parameter = (self.url,self.sha256,self.content,str(self.sentiment_positive),self.theme,db_company,db_org,db_job,db_product,db_person,db_locations)
+			# go
+			conn = MySQLdb.connect('localhost','root',db_passw0rd,'nlp',charset="utf8")
+			cursor = conn.cursor()
+			cursor.execute("INSERT INTO `nlp`.`storage` (`url`, `sha256`, `text`, `positive`, `theme`, `company`, `org`, `job`, `product`, `person_name`, `locations`) VALUES (\'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\', \'%s\')"%parameter)
+			cursor.close()
+			conn.commit()
+			conn.close()
+			return 'Use MySQLdb'
+		if not has_pymysql:
+			return 'NO pymysql'
+		else:
+			# print ('Hhhh')
+			connection = pymysql.connect(
+			host='127.0.0.1',
+			user = 'root',
+			password = db_pass_word,
+			db = db_name,
+			charset = 'utf8')
+			try:
+				with connection.cursor() as cursor:
+					sql = u"INSERT INTO `nlp_storage` (`url`, `sha256`, `text`, `positive`, `theme`, `company`, `org`, `job`, `product`, `person_name`, `locations`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+					# para = (self.url,self.sha256,self.str_company,self.str_org,self.str_job,self.str_product,self.str_person,self.str_location,self.sentiment_str,self.theme)
+					para = (self.url,self.sha256,self.content,str(self.sentiment_positive),self.theme,db_company,db_org,db_job,db_product,db_person,db_locations)
+					cursor.execute(sql,para)
+				connection.commit()
+				cursor.close()
+			except Exception,e:  
+				print(e)
+			finally:
+				connection.close()
+				return 'DONE by pymysql'
 		pass # end of the function
 	# 添加一个常用的re方法，静态的
 	@staticmethod
@@ -324,18 +371,44 @@ class nlp(object):
 
 
 	# 查看是否存在 
+	# now support pymysql
 	def check_exist(self):
+		# print ('check_exist(')
 		if has_MySQLdb == False:
-			return 'DO NOT HAVE MySQLdb!'
-		sql = "SELECT * FROM `storage` WHERE `sha256` = \'%s\' " % self.sha256
-		conn = MySQLdb.connect('localhost','root',db_passw0rd,'nlp',charset="utf8")
-		cursor = conn.cursor()
-		cursor.execute(sql)
-		# 做相关的后续数据库操作
-		result =  cursor.fetchall()
-		cursor.close()
-		# conn.commit()
-		conn.close()
+			# return 'DO NOT HAVE MySQLdb!'
+			pass
+		else:
+			sql = "SELECT * FROM `nlp_storage` WHERE `sha256` = \'%s\' " % self.sha256
+			conn = MySQLdb.connect('localhost','root',db_passw0rd,'nlp',charset="utf8")
+			cursor = conn.cursor()
+			cursor.execute(sql)
+			# 做相关的后续数据库操作
+			result =  cursor.fetchall()
+			cursor.close()
+			# conn.commit()
+			conn.close()
+			# return 'DONE by MySQLdb'
+			pass # end of else
+		if has_pymysql == False:
+			return 'DO NOT HAVE pymysql'
+		else:
+			# do things using pymysql
+			connection = pymysql.connect(
+			host='127.0.0.1',
+			user = 'root',
+			password = db_pass_word,
+			db = db_name,
+			charset = 'utf8')
+			try:
+				with connection.cursor() as cursor:
+					sql = u"SELECT * FROM `nlp_storage` WHERE `sha256` = %s "
+					para = (self.sha256)
+					cursor.execute(sql,para)
+					result = cursor.fetchall()
+					cursor.close()
+			finally:
+				connection.close()
+			pass #end of the else
 		if len(result) == 0:
 			return False # 不存在
 		else:
@@ -385,15 +458,18 @@ class nlp(object):
 	def run(self):
 		exist = self.check_exist()
 		if exist == True:
-			# print '已存在'
+			print ('已存在')
 			pass
 		else:
 			self.sentiment()
 			self.ner(3)
 			self.classify()
-			# 别忘了写数据库哦～～
-			self.write_db_str()
-			self.write_db_storage()
+			# 别忘了写数据库
+			# print ('写数据库')
+			s = self.write_db_str()
+			y =  self.write_db_storage()
+			# print (s)
+			# print (y)
 			# 写数据库结束
 			pass # 分支结构结束
 

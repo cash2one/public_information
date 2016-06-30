@@ -43,6 +43,7 @@ class BaiduResult(object):
 		first = BaiduPage(result.first_page)
 		self.items_count = first.find_items_count()
 		# 获取搜索结果条目数结束
+		print '找到相关信息：'+ str(self.items_count)
 		# 下面该获取链接了
 		for each_result in self.result_page_list:
 			time.sleep(0.2)
@@ -72,6 +73,32 @@ class BaiduResult(object):
 		db = db_name,
 		charset = 'utf8')
 		try:
+			# 来检查数据库中是否
+			# 已经含有该记录，如果有的话
+			# 删除，然后再填入新的记录
+			exists = False
+			with connection.cursor() as cursor:
+				sql = u"SELECT * FROM `search_result` WHERE `search_condition_md5` = md5(%s)"
+				para = (self.search_condition)
+				# para = ('刘时勇+成飞') # for test 
+				cursor.execute(sql,para)
+				result = cursor.fetchone()
+				if len(result) == 0:
+					pass
+				else:
+					exists = True
+				print exists
+			cursor.close()
+			if exists:
+				with connection.cursor() as cursor:
+					sql = "DELETE FROM `search_result` WHERE `search_condition_md5` = md5(%s)"
+					para = para = (self.search_condition)
+					cursor.execute(sql,para)
+				connection.commit()
+				cursor.close()
+			else:
+				pass
+			# 下面是写入
 			with connection.cursor() as cursor:
 				# insert a new record
 				sql = u"INSERT INTO `search_result` (`id`, `target_user_id`, `search_condition`, `item_count`, `search_condition_md5`) VALUES (NULL, %s, %s, %s, md5(%s))"
@@ -82,15 +109,17 @@ class BaiduResult(object):
 		finally:
 			connection.close()
 		pass # end of the function
+
+
 	
 
 def main():
 	example = BaiduResult('刘时勇+成飞',6)
 	example.run()
 	# example.link_verify()
-	print '找到相关信息：'+ str(example.items_count)
-	for i in example.real_link_list:
-		print i
+	
+	# for i in example.real_link_list:
+	# 	print i
 
 
 if __name__ == '__main__':

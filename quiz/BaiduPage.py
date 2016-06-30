@@ -123,7 +123,7 @@ class BaiduPage(object):
 			pass
 	def link_transfer(self):
 		for i in self.direct_link_list:
-			time.sleep(0.7)# 略微延迟
+			time.sleep(0.1)# 这个延迟应该尽量小，因为不是并发访问
 			location =  get_302_Location(i)
 			if 'https://www.baidu.com/s?' not in location:
 				self.real_link_list.append(location)
