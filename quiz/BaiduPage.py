@@ -71,14 +71,16 @@ class BaiduPage(object):
 				pass
 		# print div_str 
 		pass
-	def run(self,findCounts = False):
+	def run(self,findCounts = False,linkTransfer = True):
 		# 首先找条目数，用来写数据库 
 		if findCounts:
 			self.find_items_count()
 			pass
 		self.find_cache_link()
 		self.find_direct_link()
-		self.link_transfer()
+		if linkTransfer:
+			self.link_transfer()
+			pass #end of if
 		
 		pass
 	# 找出百度的直接连接，这个连接应该还包含一些跳转的内容，之后再处理
@@ -123,7 +125,7 @@ class BaiduPage(object):
 			pass
 	def link_transfer(self):
 		for i in self.direct_link_list:
-			time.sleep(0.1)# 这个延迟应该尽量小，因为不是并发访问
+			# 尝试改成并发访问来提升速度
 			location =  get_302_Location(i)
 			if 'https://www.baidu.com/s?' not in location:
 				self.real_link_list.append(location)
@@ -132,11 +134,17 @@ class BaiduPage(object):
 		# 去重
 		real_link_list = list(set(self.real_link_list))
 		pass
-
+	# 用于并发访问的302转换
+	# 暂时用不到，对于这个系统来说，并发访问不是必要的
+	def link_translate_302(self,input_url):
+		location = get_302_Location(input_url)
+		if 'https://www.baidu.com/s?' not in location:
+			self.real_link_list.append(location)
+			pass #end of if
 
 
 def main():
-	example = baidu('刘灵均+成飞')
+	example = baidu('刘时勇 + 成都飞机工业集团')
 	example.run()
 	# print '得到'+str(len(example.content_list)) + '页结果'
 	# content = example.first_page
@@ -146,12 +154,13 @@ def main():
 	page.run(findCounts = True)
 	# print str(page.items_count)
 	# print page.cache_link_list
-	for i in page.real_link_list:
-		print i
+	# for i in page.real_link_list:
+	# 	print i
 	# print page.real_link_list
-	print len(example.content_list)
+	# print len(example.content_list)
 	# for i in page.cache_link_list:
 	# 	print i # 百度快照部分的解析还存在问题。。。
+	print page.direct_link_list
 
 
 
