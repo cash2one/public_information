@@ -7,6 +7,8 @@ import time
 from BaiduResult import BaiduResult
 import requests
 import sys
+from config import config
+import json
 
 db_pass_word = 'Zh-L3z34IokS6fGze'
 db_name = 'risk_assessment_system'
@@ -14,6 +16,7 @@ db_name = 'risk_assessment_system'
 
 class person(object):
 	# 变量定义
+	eva_standard = {}
 	key_wd_dict = {}
 	phone = ''
 	qq = ''
@@ -264,10 +267,14 @@ class person(object):
 		if self.audit:
 			return 'Audit'
 			pass # end of is audit
+		# 载入配置文件
+		self.eva_standard = config.load()
+		# 载入完毕
+		# print self.eva_standard
 		# 先连接数据库
 		self.db_init()
 		# 我们已经有了关键词表 self.key_wd_dict
-		sql = "select `id`, `plain_text` from `web_page` where `target_user_id` = %s and evaluate = 'False'"
+		sql = "select `id`, `plain_text`,`url` from `web_page` where `target_user_id` = %s and evaluate = 'False'"
 		para = (self.pid)
 		result = self.db_read(sql,para)
 		if result is None:
@@ -280,26 +287,35 @@ class person(object):
 			pass # 说明有数据
 		# print result[8][1]
 		for each in result:
-			print self.count_key_words(each[1])
+			id = each[0]
+			url = each[2]
+			score = self.count_key_words(each[1],url)
+			if score > 0:
+				print id
 		# 关闭数据库连接，函数结束
 		self.db_close()
 		pass # end of the function evaluate
 	# 针对文本信息进行风险评估
 	# 统计关键词个数，返回分数
-	def count_key_words(self,plainText):
+	def count_key_words(self,plainText,url):
 		text = plainText.encode('utf-8')
 		score = 0 # 初始分数
 		for i in self.key_wd_dict:
 			score = text.count(i) * self.key_wd_dict[i] + score
 			pass # end of for i 
-		return score
+		if 'wenku.baidu.com' in url:
+			# print url
+			return score
+		if self.name not in text:
+			return 0
+
 		pass# end of the function
 
 		
 
 
 def main():
-	example = person(6)
+	example = person(7)
 	# example.db_init()
 	# sql = u"SELECT * FROM `search_result` WHERE `search_condition_md5` = md5(%s)"
 	# para = ('刘时勇+成飞')
