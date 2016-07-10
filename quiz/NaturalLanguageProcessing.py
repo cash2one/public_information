@@ -112,6 +112,7 @@ class nlp(object):
 		# super(nlp, self).__init__()
 		# self.arg = arg
 		self.set_content(content)
+		# print (type(content))
 		self.get_TOKEN() # 初始化的时候就读token
 		self.set_url(url)
 		pass
@@ -461,9 +462,12 @@ class nlp(object):
 			print ('已存在')
 			pass
 		else:
-			self.sentiment()
-			self.ner(3)
-			self.classify()
+			try:
+				self.sentiment()
+				self.ner(3)
+				self.classify()
+			except:
+				pass
 			# 别忘了写数据库
 			# print ('写数据库')
 			s = self.write_db_str()

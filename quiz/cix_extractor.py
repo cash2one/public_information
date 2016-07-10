@@ -14,7 +14,7 @@ reTAG  = r'<[\s\S]*?>|[ \t\r\f\v]'
 reIMG  = re.compile(r'<img[\s\S]*?src=[\'|"]([\s\S]*?)[\'|"][\s\S]*?>')
 
 class Extractor():
-    def __init__(self, url = "", blockSize=3, timeout=5, image=False):
+    def __init__(self, url = "", text = '',blockSize=3, timeout=5, image=False):
         self.url       = url
         self.blockSize = blockSize
         self.timeout   = timeout
@@ -22,6 +22,7 @@ class Extractor():
         self.rawPage   = ""
         self.ctexts    = []
         self.cblocks   = []
+        self.text = text
 
     def getRawPage(self):
         try:
@@ -32,6 +33,7 @@ class Extractor():
         if DBUG: print(resp.encoding)
 
         resp.encoding = "UTF-8"
+        # print type(resp.text)
 
         return resp.status_code, resp.text
 
@@ -66,7 +68,11 @@ class Extractor():
         self.body = reIMG.sub(r'{{\1}}', self.body)
 
     def getContext(self):
-        code, self.rawPage = self.getRawPage()
+        if self.text == '':
+            code, self.rawPage = self.getRawPage()
+        else:
+            self.rawPage = self.text
+            pass
         self.body = re.findall(reBODY, self.rawPage)[0]
 
         if DBUG: print(code, self.rawPage)

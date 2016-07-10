@@ -9,6 +9,8 @@ import requests
 import sys
 from config import config
 import json
+from cix_extractor import Extractor
+from NaturalLanguageProcessing import nlp
 
 db_pass_word = 'Zh-L3z34IokS6fGze'
 db_name = 'risk_assessment_system'
@@ -16,6 +18,7 @@ db_name = 'risk_assessment_system'
 
 class person(object):
 	# 变量定义
+	key_word_list = [] # 这个列表后面才会用到	
 	eva_standard = {}
 	key_wd_dict = {}
 	phone = ''
@@ -86,15 +89,12 @@ class person(object):
 		for i in result:
 			self.key_wd_dict[i[1].encode('utf-8')] = i[0]
 		for i in self.company_name_list:
-			self.key_wd_dict[i] = 2 # 默认等级为2
+			self.key_wd_dict[i] = 1 # 默认等级为1
 		# 纳入字典完毕
 		# print self.key_wd_dict
 		# 初始化过程完毕
 		pass #end of the function
 		
-		
-
-
 	# 下面这几个方法是操作数据库相关的函数
 	def db_init(self):
 		self.connection = pymysql.connect(
@@ -159,12 +159,10 @@ class person(object):
 		if not self.exist:
 			return 'NOT EXIST'
 		self.db_init()
-		# 首先对不需要详细URL的关键词搜索 
-		for i in self.wd_list:
-			each = BaiduResult(i,self.pid)
-			each.run(onlyCount = True)
+		# 首先详细检测各个项目
 		for i in self.wd_combine_list:
 			each_combine = BaiduResult(i,self.pid)
+			time.sleep(0.3)
 			each_combine.run(onlyCount = False)
 			# print each_combine.dir
 			for x in each_combine.direct_link_list:
@@ -177,6 +175,11 @@ class person(object):
 				# print x
 				pass #end of for x
 			pass # end of for i
+		# 然后对不需要详细URL的关键词搜索 
+		for i in self.wd_list:
+			each = BaiduResult(i,self.pid)
+			each.run(onlyCount = True)
+			time.sleep(0.6)
 		# 现在要执行数据采集工作
 		for direct_url in self.url_dict:
 			exists = self.check_directlink_exist(direct_url)
@@ -270,6 +273,11 @@ class person(object):
 		# 载入配置文件
 		self.eva_standard = config.load()
 		# 载入完毕
+		# 生成已知敏感关键词表
+		self.key_word_list = []
+		for i in self.key_wd_dict:
+			self.key_word_list.append(i)
+		# print key_word_list
 		# print self.eva_standard
 		# 先连接数据库
 		self.db_init()
@@ -286,36 +294,106 @@ class person(object):
 		else:
 			pass # 说明有数据
 		# print result[8][1]
+		irrelevant = self.load_irrelevant_words()
+		for i in irrelevant:
+			print i
 		for each in result:
 			id = each[0]
 			url = each[2]
-			score = self.count_key_words(each[1],url)
-			if score > 0:
-				print id
+			text_html = each[1]
+			score_key_words = self.count_key_words(text_html,url)
+			score_nlp = 0 # 明明实体识别方面的得分
+			if score_key_words > 0:
+				print score_key_words
+			# 下面要进行实体识别了
+			if score_key_words > 0:
+				# web正文抽取
+				ext = Extractor(url = 'ras_sys',text = text_html)
+				try:
+					mainText = ext.getContext()
+				except:
+					mainText = 'Failed'
+				# 抽取结束
+				score_nlp = self.evaluate_nlp(mainText,url)
+				
+			pass # end of for each 
 		# 关闭数据库连接，函数结束
 		self.db_close()
 		pass # end of the function evaluate
+	# 这个函数是命名实体识别的得分
+	def evaluate_nlp(self,text,input_url):
+		# print type(text)
+		if text == 'Failed':
+			return 0
+		else:
+			pass
+		# 如果值得做识别，下面开始识别
+		each = nlp(content = text,url = input_url)
+		try:
+			each.run()
+		except:
+			pass
+		return 0
+		pass
+	# 导入无关词语列表
+	def load_irrelevant_words(self):
+		irr_list = self.key_word_list
+		# 再从数据看里面读
+		sql = "select word from unknown_word where irrelevent = 1"
+		para = ()
+		result = self.db_read(sql,para)
+		for i in result:
+			irr_list.append(i[0].encode('utf-8'))
+		# 返回列表
+		return irr_list
+		pass
 	# 针对文本信息进行风险评估
 	# 统计关键词个数，返回分数
 	def count_key_words(self,plainText,url):
 		text = plainText.encode('utf-8')
-		score = 0 # 初始分数
+		sum = 0
+		score = {}
+		score[1] = 0
+		score[2] = 0
+		score[3] = 0
+		score[10] = 0
+		# 把score设置成字典？
 		for i in self.key_wd_dict:
-			score = text.count(i) * self.key_wd_dict[i] + score
+			score[self.key_wd_dict[i]] = text.count(i)  + score[self.key_wd_dict[i]]
+			# 计算各个词出现的个数
 			pass # end of for i 
+		score[1] = score[1] * self.eva_standard['baidu']['url']['each_url']['kw']['level_1']['each']['value']
+		score[2] = score[2] * self.eva_standard['baidu']['url']['each_url']['kw']['level_2']['each']['value']
+		score[3] = score[3] * self.eva_standard['baidu']['url']['each_url']['kw']['level_3']['each']['value']
+		# 然后是一种“削平”的操作
+		for i in score:
+			if score[i] > 100:
+				score[i] = 100
+			else:
+				pass 
+			pass # end of for i
+		a1 = self.eva_standard['baidu']['url']['each_url']['kw']['level_1']['value']
+		a2 = self.eva_standard['baidu']['url']['each_url']['kw']['level_2']['value']
+		a3 = self.eva_standard['baidu']['url']['each_url']['kw']['level_3']['value']
+		sum = a1 * score[1] + a2 * score[2] + a3 * score[3]
+		if score[10] > 0:
+			# 一票否决类型的词
+			sum = 100
+			pass # end of score[10]
 		if 'wenku.baidu.com' in url:
 			# print url
-			return score
-		if self.name not in text:
+			return sum
+		if self.name in text:
+			return sum
+		else:
 			return 0
-
 		pass# end of the function
 
 		
 
 
 def main():
-	example = person(7)
+	example = person(6)
 	# example.db_init()
 	# sql = u"SELECT * FROM `search_result` WHERE `search_condition_md5` = md5(%s)"
 	# para = ('刘时勇+成飞')
@@ -343,6 +421,8 @@ def main():
 	# print example.check_url_exist('real_url')
 	# example.collect()
 	example.evaluate()
+	# for i in example.key_wd_dict:
+	# 	print i +  str(example.key_wd_dict[i])
 	
 
 
