@@ -1,5 +1,7 @@
 #-*- coding:utf-8 -*-
-
+'''
+	模块：用途、工作。
+'''
 # import the modules
 import pymysql
 import re
@@ -18,6 +20,10 @@ db_name = 'risk_assessment_system'
 
 class person(object):
 	# 变量定义
+	risk_count = 0  # 这个是写在数据库 person_status 中的危险信息数量
+	score = 0 # 这个是此人的总分数
+	url_count = 0
+	url_sum = 0 #  URL 上的分数的总得分
 	key_word_list = [] # 这个列表后面才会用到	
 	eva_standard = {}
 	key_wd_dict = {}
@@ -185,7 +191,7 @@ class person(object):
 			exists = self.check_directlink_exist(direct_url)
 			if exists:
 				# 如果存在，仅更新时间
-				print 'exist'
+				# print 'exist'
 				self.update_by_directlink(direct_url)
 			else:
 				# 如果不存在，那么需要获取数据
@@ -294,17 +300,13 @@ class person(object):
 		else:
 			pass # 说明有数据
 		# print result[8][1]
-		irrelevant = self.load_irrelevant_words()
-		for i in irrelevant:
-			print i
+		self.irrelevant = self.load_irrelevant_words()
 		for each in result:
+			sum = 0 # 总分
 			id = each[0]
 			url = each[2]
 			text_html = each[1]
 			score_key_words = self.count_key_words(text_html,url)
-			score_nlp = 0 # 明明实体识别方面的得分
-			if score_key_words > 0:
-				print score_key_words
 			# 下面要进行实体识别了
 			if score_key_words > 0:
 				# web正文抽取
@@ -315,8 +317,59 @@ class person(object):
 					mainText = 'Failed'
 				# 抽取结束
 				score_nlp = self.evaluate_nlp(mainText,url)
-				
+			else:
+				score_nlp = 0
+			# 对每个URL计算总分
+			# 先加载权重
+			a1 = self.eva_standard['baidu']['url']['each_url']['kw']['value']
+			a2 = self.eva_standard['baidu']['url']['each_url']['nlp']['value']
+			sum = a1 * score_key_words + a2 * score_nlp
+			if sum > 0:
+				self.risk_count += 1 # 危险信息数 +1
+				print str(sum) + ' -> ' + url
+			# 已经完成了对每个URL进行评分的过程
+			#  现在更新
+			sql = "update `web_page` set `score` = %s where `id` = %s ;"
+			para = (sum, id)
+			self.db_write(sql,para) # 写数据库，更新分数
+			self.url_sum += sum
 			pass # end of for each 
+		# 现在已经对每个URL评分结束了
+		# 现在是对这个人进行风险评估
+		# URL部分
+		a = self.eva_standard['baidu']['url']['each_url']['value']
+		self.url_sum = self.url_sum * a
+		if self.url_sum > 100:
+			self.url_sum = 100
+			pass
+		# 现在还是在满分100分的状态下
+		# print self.url_sum
+		# URL部分结束
+		# 下面是对数量进行评分
+		sql = "select sum(item_count) from search_result where target_user_id = %s ;"
+		para = (self.pid)
+		result = self.db_read(sql,para)
+		count = result[0][0]
+		a = self.eva_standard['baidu']['count']['each']['value']
+		# print type(a)
+		# print type(self.url_count)
+		self.url_count = a * float(count)
+		if self.url_count > 100:
+			self.url_count = 100 # 满分100
+		# print self.url_count
+		# 现在计算这个人的总分
+		# 百度的，满分100
+		a1 = self.eva_standard['baidu']['url']['value'] 
+		a2 = self.eva_standard['baidu']['count']['value']
+		self.score = a1 * self.url_sum + a2 * self.url_count
+		print self.score # 这个就是总分
+		# 计算总得分完毕
+		# 数量评分结束
+		# 现在应该写数据库了
+		sql = "update person_status SET baidu_score = %s , baidu_count = %s WHERE target_user_id = %s"
+		para = (self.score , self.risk_count , self.pid)
+		self.db_write(sql,para)
+		# 写数据库结束
 		# 关闭数据库连接，函数结束
 		self.db_close()
 		pass # end of the function evaluate
@@ -332,8 +385,52 @@ class person(object):
 		try:
 			each.run()
 		except:
+			# 如果出错，以后再完善
 			pass
-		return 0
+		# 识别出来的明明实体，放到一个列表中
+		score = 0
+		entity_list = []
+		# 添加公司名
+		for i in each.company_name:
+			entity_list.append(i)
+			pass 
+		# 添加 产品名称 
+		for i in each.product_name:
+			entity_list.append(i)
+			pass
+		# 添加 组织名称
+		for i in each.org_name:
+			entity_list.append(i)
+			pass
+		valid_list = []
+		# 现在已经成功添加了未知实体的列表
+		# 下面开始，先对未知的命名实体信息写入数据库
+		# 同时把不属于无关信息的实体放进列表 
+		for each_word in entity_list:
+			each_word = each_word.encode('utf-8')
+			# 下面时录入数据库
+			if each_word in self.irrelevant:
+				pass
+			elif self.check_word_exists(each_word):
+				self.update_unknown_word_count(each_word)
+			else:
+				self.add_unknown_word(each_word)
+			# 计算分数的 
+			if each_word not in self.irrelevant:
+				valid_list.append(each_word)
+			# print each_word
+			pass # end of for each_word
+		# 现在数据库操作完成了
+		a1 = self.eva_standard['baidu']['url']['each_url']['nlp']['each_word']['value']
+		# 列表去重
+		valid_list = list(set(valid_list))
+		score = a1 * len(valid_list)
+		if score > 100:
+			score = 100
+		else:
+			pass
+		# print score
+		return score
 		pass
 	# 导入无关词语列表
 	def load_irrelevant_words(self):
@@ -346,6 +443,40 @@ class person(object):
 			irr_list.append(i[0].encode('utf-8'))
 		# 返回列表
 		return irr_list
+		pass
+	# 检查是否存在
+	def check_word_exists(self,word):
+		sql = u"select word from unknown_word where word_md5 = md5(%s) and company_id = %s;"
+		para = (word, self.cid)
+		result = self.db_read(sql,para)
+		try:
+			if len(result) > 0:
+				return True
+		except:
+			pass
+		if result is ():
+			return False
+		elif result is None:
+			return False
+		else:
+			return True
+		pass
+	# 更新关键词的count
+	def update_unknown_word_count(self,word):
+		sql = "select id,count from unknown_word where word_md5 = md5(%s) and company_id = %s ;"
+		para = (word,self.cid)
+		result = self.db_read(sql,para)
+		id = result[0][0]
+		count = result[0][1]
+		sql = "update unknown_word set count = %s where id = %s"
+		para = (count + 1, id)
+		self.db_write(sql,para)
+		pass
+	# 添加新的未知实体信息
+	def add_unknown_word(self,word):
+		sql = u"INSERT INTO `unknown_word`( `id` ,`word`, `word_md5`, `company_id`, `count`, `irrelevent`) VALUES (NULL, %s ,md5( %s ), %s,1,0);"
+		para = (word, word, self.cid)
+		self.db_write(sql ,para)
 		pass
 	# 针对文本信息进行风险评估
 	# 统计关键词个数，返回分数
@@ -378,11 +509,16 @@ class person(object):
 		sum = a1 * score[1] + a2 * score[2] + a3 * score[3]
 		if score[10] > 0:
 			# 一票否决类型的词
-			sum = 100
+			return 100
 			pass # end of score[10]
-		if 'wenku.baidu.com' in url:
+		if ('wenku.baidu.com' in url) | ('www.docin.com' in url):
+			# 动态内容不能解析，但是百度给出的结果通常都比较准确
 			# print url
-			return sum
+			if sum > 0:
+				return sum + 70
+			else:
+				pass
+			return sum 
 		if self.name in text:
 			return sum
 		else:
@@ -393,7 +529,7 @@ class person(object):
 
 
 def main():
-	example = person(6)
+	example = person(8)
 	# example.db_init()
 	# sql = u"SELECT * FROM `search_result` WHERE `search_condition_md5` = md5(%s)"
 	# para = ('刘时勇+成飞')
@@ -423,7 +559,8 @@ def main():
 	example.evaluate()
 	# for i in example.key_wd_dict:
 	# 	print i +  str(example.key_wd_dict[i])
-	
+	# print example.check_word_exists('腾讯微博')
+	# example.update_unknown_word_count('腾讯微博')
 
 
 if __name__ == "__main__":

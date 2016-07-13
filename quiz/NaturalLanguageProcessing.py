@@ -459,7 +459,7 @@ class nlp(object):
 	def run(self):
 		exist = self.check_exist()
 		if exist == True:
-			print ('已存在')
+			# print ('已存在')
 			pass
 		else:
 			try:
